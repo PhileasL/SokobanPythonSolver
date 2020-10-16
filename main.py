@@ -118,6 +118,33 @@ def pathExistsDFS(grid, start, end, visited):
                 return True
     return False
 
+def coarseSolveOrder(walls, goals):
+    costs = []
+    for goal in goals:
+        around = getAroundPositions(goal)
+        cost = 0
+        nbOfWalls = 0
+        for i in around:
+            if walls[i[0]][i[1]] == '#':
+                cost += 1
+                nbOfWalls += 1
+            if i in goals:
+                cost += 1
+        if nbOfWalls != 0:
+            for i in range(2):
+                if walls[around[i][0]][around[i][1]] == '#':
+                    cost += 1
+                    break
+            for i in range(2,4):
+                if walls[around[i][0]][around[i][1]] == '#':
+                    cost += 1
+                    break
+        costs.append([goal, cost])
+    return costs
+
+def getAroundPositions(pos):
+    return [[pos[0]+1,pos[1]], [pos[0]-1,pos[1]], [pos[0],pos[1]+1], [pos[0],pos[1]-1]]
+
 #####################
 # Launch the search #
 #####################
@@ -126,10 +153,10 @@ grid = openFile(sys.argv[1])
 goalsGrid = openFile(sys.argv[2])
 
 printBeautifulPath(grid)
+printBeautifulPath(goalsGrid)
 
 player, boxes, walls = getEssentialsPositions(grid)
-printBeautifulPath(walls)
 state = State(player, boxes)
+goals = getGoals(goalsGrid)
 
-print(getGoals(goalsGrid))
-
+print(coarseSolveOrder(walls, goals))
