@@ -52,6 +52,14 @@ def getEssentialsPositions(array):
                 walls[i][j] = '#'
     return player, boxes, walls
 
+def getGoals(grid):
+    goals = []
+    for i in range(len(grid)):
+        for j in range(len(grid[0])):
+            if grid[i][j] == '.':
+                goals.append([i,j])
+    return goals
+
 def openFile(path):
 	monfichier= open(path)
 	text=monfichier.read()
@@ -102,15 +110,12 @@ def pathExistsDFS(grid, start, end, visited):
         j = start[1] + d[1]
         next = [i, j]
         if i == end[0] and j == end[1]:
-            printBeautifulPath(visited)
             return True
         if grid[i][j] == ' ' and not visited[i][j]:
             visited[i][j] = 1
             exists = pathExistsDFS(grid, next, end, visited)
             if exists:
-                printBeautifulPath(visited)
                 return True
-    printBeautifulPath(visited)
     return False
 
 #####################
@@ -118,12 +123,13 @@ def pathExistsDFS(grid, start, end, visited):
 #####################
 
 grid = openFile(sys.argv[1])
+goalsGrid = openFile(sys.argv[2])
 
 printBeautifulPath(grid)
 
 player, boxes, walls = getEssentialsPositions(grid)
 printBeautifulPath(walls)
 state = State(player, boxes)
-#sidesRemoved = removeSides(grid)
-print(boxes)
-print(pathExists(walls, [4,2], [4,9], boxes))
+
+print(getGoals(goalsGrid))
+
