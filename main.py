@@ -211,6 +211,12 @@ def getDeadlocks(walls, goals):
     printBeautifulPath(copyWalls)
     return trueDeadLocks
 
+def fineSolveOrder(coarseOrder, walls, deadLocks):
+    costs = []
+    for i in coarseOrder:
+        costs.append(i[1])
+    print(costs)
+
 #####################
 # Launch the search #
 #####################
@@ -224,7 +230,11 @@ printBeautifulPath(goalsGrid)
 player, boxes, walls = getEssentialsPositions(grid)
 state = State(player, boxes)
 goals = getGoals(goalsGrid)
+coarseOrder = coarseSolveOrder(walls, goals)
+deadLocks = getDeadlocks(walls, goals)
 
-print("coarse solve order", coarseSolveOrder(walls, goals))
+print("coarse solve order", coarseOrder)
 
-print("deadlocks position:", getDeadlocks(walls, goals))
+print("deadlocks position:", deadLocks)
+
+fineSolveOrder(coarseOrder, walls, deadLocks)
