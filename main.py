@@ -145,6 +145,72 @@ def coarseSolveOrder(walls, goals):
 def getAroundPositions(pos):
     return [[pos[0]+1,pos[1]], [pos[0]-1,pos[1]], [pos[0],pos[1]+1], [pos[0],pos[1]-1]]
 
+def getDeadlocks(walls, goals):
+    deadLocks = []
+    for i in range(len(walls)):
+        for j in range(len(walls[0])):
+            if walls[i][j] != '#':
+                around = getAroundPositions([i,j])
+                nbOfWalls = 0
+                if walls[around[0][0]][around[0][1]] == '#':
+                    nbOfWalls += 1
+                elif walls[around[1][0]][around[1][1]] == '#':
+                    nbOfWalls += 1
+                if walls[around[2][0]][around[2][1]] == '#':
+                    nbOfWalls += 1
+                elif walls[around[3][0]][around[3][1]] == '#':
+                    nbOfWalls += 1
+                if nbOfWalls == 2 and [i,j] not in goals:
+                    deadLocks.append([i,j])
+    # if between 2 deadlocks corners there are either no goals and a continious wall, all the spaces are a deadlock position
+    trueDeadLocks = deadLocks.copy()
+    for i in deadLocks:
+        directions = []
+        tmpWalls = []
+        aroundDeadPos = getAroundPositions(i)
+        for j in range(len(aroundDeadPos)):
+            if walls[aroundDeadPos[j][0]][aroundDeadPos[j][1]] != '#':
+                directions.append(j)
+            else:
+                tmpWalls.append(j)
+        for j in directions:
+            tmpPath = []
+            displacement = []
+            if j == 0: displacement = [1, 0]
+            elif j == 1: displacement = [-1, 0]
+            elif j == 2: displacement = [0, +1]
+            elif j == 3: displacement = [0, -1]
+            pos = [i[0]+displacement[0], i[1]+displacement[1]]
+            tmpPath.append(pos)
+            followWall = True
+            tmpWallsBis = tmpWalls.copy()
+            while pos not in deadLocks and walls[pos[0]][pos[1]] != '#' and followWall and pos not in goals:
+                aroundPos = getAroundPositions(pos)
+                wallAroundPos = []
+                for k in range(len(aroundPos)):
+                    if walls[aroundPos[k][0]][aroundPos[k][1]] == '#':
+                        wallAroundPos.append(k)
+                anotherTmpWallsForThisNextLoop = tmpWallsBis.copy()
+                for k in anotherTmpWallsForThisNextLoop:
+                    if k not in wallAroundPos:
+                        tmpWallsBis.remove(k)
+                if len(tmpWallsBis) == 0:
+                    followWall = False
+                pos = [pos[0]+displacement[0], pos[1]+displacement[1]]
+                tmpPath.append(pos)
+            if pos in deadLocks and followWall:
+                for path in tmpPath:
+                    if path not in trueDeadLocks:
+                        trueDeadLocks.append(path)
+
+    copyWalls = walls.copy()
+    for i in range(len(copyWalls)):
+        for j in range(len(copyWalls[0])):
+            if [i,j] in trueDeadLocks:
+                copyWalls[i][j] = 'x'
+    printBeautifulPath(copyWalls)
+    return trueDeadLocks
+
 #####################
 # Launch the search #
 #####################
@@ -159,4 +225,6 @@ player, boxes, walls = getEssentialsPositions(grid)
 state = State(player, boxes)
 goals = getGoals(goalsGrid)
 
-print(coarseSolveOrder(walls, goals))
+print("coarse solve order", coarseSolveOrder(walls, goals))
+
+print("deadlocks position:", getDeadlocks(walls, goals))
