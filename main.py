@@ -36,6 +36,34 @@ class State:
         newActualPosition = self.actualPosition.copy()
         return State(newActualPosition, newBoxes)
 
+class FindEntry(Problem):
+
+    def __init__(self, initial):
+        self.initial = tuple(initial.get("goal"))
+        self.walls = initial.get("walls")
+        self.deadLocks = initial.get("deadLocks")
+        self.goals = initial.get("goals")
+
+    def goal_test(self, state):
+        nbOfBlankSpaces = 0
+        for i in getAroundPositions(state):
+            if self.walls[i[0]][i[1]] != '#' and i not in self.deadLocks and i not in self.goals:
+                nbOfBlankSpaces += 1
+        if nbOfBlankSpaces >= 3:
+            return True
+        else:
+            return False
+    
+    def actions(self, state):
+        actions = []
+        for i in getAroundPositions(state):
+            if self.walls[i[0]][i[1]] != '#' and i not in self.deadLocks:
+                actions.append(i)
+        return actions
+    
+    def result(self, state, action):
+        return tuple(action)
+
 ######################
 # Auxiliary function #
 ######################
@@ -217,6 +245,14 @@ def fineSolveOrder(coarseOrder, walls, deadLocks):
         costs.append(i[1])
     print(costs)
 
+def getEntry(goal, sameCostsGoals, walls, deadLocks):
+    aroundGoal = getAroundPositions(goal)
+    foundEntry = false
+    entry = []
+    
+
+
+
 #####################
 # Launch the search #
 #####################
@@ -238,3 +274,14 @@ print("coarse solve order", coarseOrder)
 print("deadlocks position:", deadLocks)
 
 fineSolveOrder(coarseOrder, walls, deadLocks)
+
+exDict = {
+    "goal": [1, 5],
+    "walls": walls,
+    "deadLocks": deadLocks,
+    "goals": goals
+}
+
+anEntry = FindEntry(exDict)
+resolution = search.depth_first_graph_search(anEntry) 
+print(resolution.solution()[-1])
