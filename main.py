@@ -112,15 +112,6 @@ def printBeautifulPath(array):
 		print()
 	print()
 
-def removeSides(grid): #maybe not necessary
-    newGrid = grid.copy()
-    newGrid.remove(grid[0])
-    newGrid.remove(grid[len(grid)-1])
-    for i in range(len(grid)-2):
-        newGrid[i].pop(0)
-        newGrid[i].pop(len(grid)+1)
-    return newGrid
-
 directions = [ [0, -1], [0, 1], [-1, 0], [1, 0] ]
 
 def pathExists(actualGrid, start, end, boxes):
@@ -239,19 +230,79 @@ def getDeadlocks(walls, goals):
     printBeautifulPath(copyWalls)
     return trueDeadLocks
 
-def fineSolveOrder(coarseOrder, walls, deadLocks):
-    costs = []
+def fineSolveOrder(coarseOrder, walls, deadLocks, goals):
+    fineOrder = []
+    costsNonSorted = []
     for i in coarseOrder:
-        costs.append(i[1])
-    print(costs)
+        costsNonSorted.append(i[1])
+    print("costsNonSorted", costsNonSorted)
+    maxCost = max(costsNonSorted)
+    costs = []
+    for i in range(maxCost +1):
+        for j in costsNonSorted:
+            if i == j:
+                costs.append(j)
+    costs = list(reversed(costs))
+    print("costsSorted", costs)
+    sameCosts = []
+    for i in costs:
+        if costs.count(i) != 1 and i not in sameCosts:
+            sameCosts.append(i)
+    print("sameCosts", sameCosts)
+    for costRising in costs:
+        if costRising in sameCosts:
+            for i in sameCosts:
+                entries = []
+                sameCostsGoals = []
+                for j in coarseOrder:
+                    if j[1] == i:
+                        sameCostsGoals.append(j[0])
+                for j in sameCostsGoals:
+                    entries.append(getEntry(j, goals, walls, deadLocks))
+                sameEntry = []
+                for j in entries:
+                    if entries.count(j) != 1 and j not in sameEntry:
+                        sameEntry.append(j)
+                for j in range(len(sameCostsGoals)):
+                    if entries[j] not in sameEntry and sameCostsGoals[j] not in fineOrder:
+                        fineOrder.append(sameCostsGoals[j])
+                    elif sameCostsGoals[j] in fineOrder: None
+                    else:
+                        sameCostsSameEntry = []
+                        for k in range(len(sameCostsGoals)):
+                            if entries[j] == entries[k]:
+                                sameCostsSameEntry.append(sameCostsGoals[k])
+                        distanceToGoal = []
+                        for k in sameCostsSameEntry:
+                            distanceToGoal.append([manhattanHeuristicFunction(entries[j], k), k])
+                        maxDist = 0
+                        for k in distanceToGoal:
+                            if maxDist < k[0]:
+                                maxDist = k[0]
+                        print(distanceToGoal, maxDist)
+                        for k in range(maxDist+1):
+                            for x in distanceToGoal:
+                                if x[0] == maxDist-k:
+                                    fineOrder.append(x[1])
+        else: 
+            for i in coarseOrder:
+                if i[1] == costRising:
+                    fineOrder.append(i[0])
+    return fineOrder
 
-def getEntry(goal, sameCostsGoals, walls, deadLocks):
-    aroundGoal = getAroundPositions(goal)
-    foundEntry = false
-    entry = []
-    
+def getEntry(goal, goals, walls, deadLocks):
+    problemParams = {
+        "goal": goal,
+        "walls": walls,
+        "deadLocks": deadLocks,
+        "goals": goals
+    }
+    findEntry = FindEntry(problemParams)
+    resolution = search.depth_first_graph_search(findEntry)
+    return resolution.solution()[-1]
 
-
+def manhattanHeuristicFunction(firstPoint, secondPoint):
+	return abs(secondPoint[1] - firstPoint[1]) + abs(secondPoint[0] - firstPoint[0])
 
 #####################
 # Launch the search #
@@ -273,8 +324,10 @@ print("coarse solve order", coarseOrder)
 
 print("deadlocks position:", deadLocks)
 
-fineSolveOrder(coarseOrder, walls, deadLocks)
+fineSolver = fineSolveOrder(coarseOrder, walls, deadLocks, goals)
 
+print("fine solve order", fineSolver)
+"""
 exDict = {
     "goal": [1, 5],
     "walls": walls,
@@ -285,3 +338,4 @@ exDict = {
 anEntry = FindEntry(exDict)
 resolution = search.depth_first_graph_search(anEntry) 
 print(resolution.solution()[-1])
+"""
