@@ -1,6 +1,7 @@
 import time
 import sys
 import search
+import copy
 from search import Problem
 from datetime import datetime
 
@@ -32,8 +33,8 @@ class State:
     def copy(self):
         newBoxes = []
         for i in self.boxes:
-            newBoxes.append(i.copy())
-        newActualPosition = self.actualPosition.copy()
+            newBoxes.append(copy.deepcopy(i))
+        newActualPosition = copy.deepcopy(self.actualPosition)
         return State(newActualPosition, newBoxes)
 
 class FindEntry(Problem):
@@ -114,11 +115,40 @@ def printBeautifulPath(array):
 
 directions = [ [0, -1], [0, 1], [-1, 0], [1, 0] ]
 
-def pathExists(actualGrid, start, end, boxes):
-    grid = actualGrid.copy()
+def pathCubeExists(actualGrid, start, end, boxes, deadLocks, playerPos):
+    grid = copy.deepcopy(actualGrid)
     for i in boxes:
-        grid[i[0]][i[1]] = '#'
-    printBeautifulPath(grid)
+        if i != start:
+            grid[i[0]][i[1]] = '#'
+    visited = [ [0 for j in range(0, len(grid[0]))] for i in range(0, len(grid)) ]
+    ok = pathCubeExistsDFS(grid, start, end, visited, playerPos, deadLocks)
+    return ok
+
+def pathCubeExistsDFS(grid, start, end, visited, pos, deadLocks):
+    for d in directions:
+        i = start[0] + d[0]
+        j = start[1] + d[1]
+        k = start[0] - d[0]
+        l = start[1] - d[1]
+        next = [i, j]
+        if i == end[0] and j == end[1] and grid[k][l] == ' ':
+            printBeautifulPath(visited)
+            return [True, start]
+        if grid[i][j] == ' ' and not visited[i][j] and [i, j] not in deadLocks and grid[k][l]  == ' ' and pathExists(grid, pos, [k, l], None):
+            visited[i][j] = 1
+            pos = copy.deepcopy(start)
+            exists = pathCubeExistsDFS(grid, next, end, visited, pos, deadLocks)
+            if exists[0]:
+                return exists
+    printBeautifulPath(visited)
+    return [False, [0,0]]
+
+
+def pathExists(actualGrid, start, end, boxes):
+    grid = copy.deepcopy(actualGrid)
+    if boxes != None:
+        for i in boxes:
+            grid[i[0]][i[1]] = '#'
     visited = [ [0 for j in range(0, len(grid[0]))] for i in range(0, len(grid)) ]
     ok = pathExistsDFS(grid, start, end, visited)
     return ok
@@ -182,7 +212,7 @@ def getDeadlocks(walls, goals):
                 if nbOfWalls == 2 and [i,j] not in goals:
                     deadLocks.append([i,j])
     # if between 2 deadlocks corners there are either no goals and a continious wall, all the spaces are a deadlock position
-    trueDeadLocks = deadLocks.copy()
+    trueDeadLocks = copy.deepcopy(deadLocks)
     for i in deadLocks:
         directions = []
         tmpWalls = []
@@ -202,14 +232,14 @@ def getDeadlocks(walls, goals):
             pos = [i[0]+displacement[0], i[1]+displacement[1]]
             tmpPath.append(pos)
             followWall = True
-            tmpWallsBis = tmpWalls.copy()
+            tmpWallsBis = copy.deepcopy(tmpWalls)
             while pos not in deadLocks and walls[pos[0]][pos[1]] != '#' and followWall and pos not in goals:
                 aroundPos = getAroundPositions(pos)
                 wallAroundPos = []
                 for k in range(len(aroundPos)):
                     if walls[aroundPos[k][0]][aroundPos[k][1]] == '#':
                         wallAroundPos.append(k)
-                anotherTmpWallsForThisNextLoop = tmpWallsBis.copy()
+                anotherTmpWallsForThisNextLoop = copy.deepcopy(tmpWallsBis)
                 for k in anotherTmpWallsForThisNextLoop:
                     if k not in wallAroundPos:
                         tmpWallsBis.remove(k)
@@ -221,8 +251,8 @@ def getDeadlocks(walls, goals):
                 for path in tmpPath:
                     if path not in trueDeadLocks:
                         trueDeadLocks.append(path)
-
-    copyWalls = walls.copy()
+    
+    copyWalls = copy.deepcopy(walls) 
     for i in range(len(copyWalls)):
         for j in range(len(copyWalls[0])):
             if [i,j] in trueDeadLocks:
@@ -327,6 +357,8 @@ print("deadlocks position:", deadLocks)
 fineSolver = fineSolveOrder(coarseOrder, walls, deadLocks, goals)
 
 print("fine solve order", fineSolver)
+
+print(pathCubeExists(walls, [2, 4], [9, 3], boxes, deadLocks, [1, 5]))
 """
 exDict = {
     "goal": [1, 5],
