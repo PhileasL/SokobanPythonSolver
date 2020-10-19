@@ -329,7 +329,15 @@ def getEntry(goal, goals, walls, deadLocks):
     }
     findEntry = FindEntry(problemParams)
     resolution = search.depth_first_graph_search(findEntry)
-    return resolution.solution()[-1]
+    try:
+        resolution.solution()[-1]
+    except IndexError:
+        #entry is around itself...
+        for i in getAroundPositions(goal):
+                if walls[i[0]][i[1]] != '#' and i not in deadLocks and i not in goals:
+                    return i
+
+    return None #should never gone here
 
 def manhattanHeuristicFunction(firstPoint, secondPoint):
 	return abs(secondPoint[1] - firstPoint[1]) + abs(secondPoint[0] - firstPoint[0])
@@ -358,7 +366,12 @@ fineSolver = fineSolveOrder(coarseOrder, walls, deadLocks, goals)
 
 print("fine solve order", fineSolver)
 
-print(pathCubeExists(walls, [2, 4], [9, 3], boxes, deadLocks, [1, 5]))
+start = [2, 7]
+end = [3,6]
+playerPos = [1, 4]
+boxeee = [[1,5], [3,6]]
+print(pathCubeExists(walls, start, end, boxeee, deadLocks, playerPos))
+
 """
 exDict = {
     "goal": [1, 5],
