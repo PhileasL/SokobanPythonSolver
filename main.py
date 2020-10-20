@@ -10,6 +10,7 @@ from datetime import datetime
 #################
 
 class State:
+
     def __init__(self, actualPosition, boxes, costFocused = None):
         self.actualPosition=actualPosition
         self.boxes=boxes
@@ -178,6 +179,7 @@ class ResolverCube(Problem):
             return c + 20
 
 class PathFinderCube(Problem):
+
     def __init__(self, initial, goal):
         self.walls = initial.get("walls")
         self.deadLocks = initial.get("deadlocks")
@@ -213,6 +215,43 @@ class PathFinderCube(Problem):
 
     def h(self, node):
         return manhattanHeuristicFunction(node.state.boxes[self.indexBoxFocused], self.goal.boxes[self.indexBoxFocused])
+    
+class PathFinderPlayer(Problem):
+
+    def __init__(self, initial, goal):
+        self.walls = initial.get("walls")
+        self.initial = State(initial.get("playerPos"), initial.get("boxes"), goal.costFocused)
+        self.goal = self.computeGoal(goal)
+
+    def computeGoal(self, goal):
+        index = 0
+        for i in self.initial.boxes:
+            if i not in goal.boxes:
+                index = self.initial.boxes.index(i)
+        movedBoxes = [self.initial.boxes[index], goal.boxes[index]]
+        return [self.initial.boxes[index][0] - goal.boxes[index][0] + self.initial.boxes[index][0], self.initial.boxes[index][1] - goal.boxes[index][1] + self.initial.boxes[index][1]]
+
+    def goal_test(self, state):
+        if state.actualPosition == self.goal:
+            return True
+        else:
+            return False
+
+    def actions(self, state):
+        actions = []
+        for around in getAroundPositions(state.actualPosition):
+            if self.walls[around[0]][around[1]] == ' ' and around not in state.boxes:
+                actions.append(around)
+        return actions
+
+    def result(self, state, action):
+        newState = state.copy()
+        newState.actualPosition = action
+        return newState
+
+    def h(self, node):
+        return manhattanHeuristicFunction(node.state.actualPosition, self.goal)
+
     
 
 ######################
@@ -537,11 +576,27 @@ if eventualResolution != None:
     for i in range(len(firstPathCube)-1):
         initialParams["playerPos"] = firstPathCube[i].state.actualPosition
         initialParams["boxes"] = firstPathCube[i].state.boxes
+
         cubePathProblem = PathFinderCube(initialParams, firstPathCube[i+1].state)
         cubePath = search.astar_search(cubePathProblem)
+
         secondPathCube = cubePath.path()
+
         for j in range(len(secondPathCube)-1):
-            secondPathCube[j].state.__str__(walls)
+            initialParams["playerPos"] = secondPathCube[j].state.actualPosition
+            initialParams["boxes"] = secondPathCube[j].state.boxes
+
+            playerPathProblem = PathFinderPlayer(initialParams, secondPathCube[j+1].state)
+            playerPath = search.astar_search(playerPathProblem)
+
+            thirdPathPlayer = playerPath.path()
+
+            for k in range(len(thirdPathPlayer)):
+                thirdPathPlayer[k].state.__str__(walls)
+
+
+
+            #secondPathCube[j].state.__str__(walls)
 else:
     print("resolution impossible")
 
