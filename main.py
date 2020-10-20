@@ -4,6 +4,7 @@ import search
 import copy
 from search import Problem
 from datetime import datetime
+from itertools import combinations 
 
 #################
 # Problem class #
@@ -117,10 +118,9 @@ class ResolverCube(Problem):
                 results = pathCubeExists(self.walls, box, nextGoal, state.boxes, self.deadLocks, state.actualPosition)
                 if results[0]:
                     actions.append([nextGoal, results[1], box])
-        
         for box in boxesOnWrongPlaces:
             for around in getAroundPositions(box):
-                if self.walls[around[0]][around[1]] == ' ' and around not in self.goalSolveOrder and around not in state.boxes:
+                if self.walls[around[0]][around[1]] == ' ' and around not in state.boxes:
                     results = pathCubeExists(self.walls, box, around, state.boxes, self.deadLocks, state.actualPosition)
                     if results[0]:
                         actions.append([around, results[1], box])      
@@ -145,6 +145,22 @@ class ResolverCube(Problem):
                     None
                     #end of resolution
         return newState
+
+    def h(self, node):
+        cost = 0
+        for i in self.goalsCosts:
+            cost += i * 5
+        for box in node.state.boxes:
+            for i in range(len(self.goalsCosts)):
+                if box == self.goalSolveOrder[i]:
+                    cost -= self.goalsCosts[i] * 5
+        return cost
+
+    def path_cost(self, c, state1, action, state2):
+        if manhattanHeuristicFunction(action[0], action[2])>1:
+            return 0
+        else:
+            return c + 20
 
 
 ######################
@@ -454,22 +470,25 @@ initialParams = {
     "walls": walls,
     "deadlocks": deadLocks
 }
-
-
-
+now = datetime.now()
 
 theProblem = ResolverCube(initialParams)
-eventualResolution = search.depth_first_graph_search(theProblem)#breadth_first_graph_search
+eventualResolution = search.astar_search(theProblem)#breadth_first_graph_search depth_first_graph_search
+
+later = datetime.now()
+
 if eventualResolution != None: 
     for s in eventualResolution.path():
         s.state.__str__(walls)
 else:
     print("resolution impossible")
+
+print("resolution took", (later - now).total_seconds(), "secondes")
 """
-start = [4, 3]
-end = [3, 2]
-playerPos = [5, 2]
-boxeee = [[4, 3], [6,2], [5, 4]]
+start = [3, 2]
+end = [6, 2]
+playerPos = [4, 2]
+boxeee = [[3, 2], [3, 3], [3, 4]]
 results = pathCubeExists(walls, start, end, boxeee, deadLocks, playerPos)
 print(results)
 """
