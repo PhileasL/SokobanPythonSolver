@@ -10,22 +10,27 @@ from datetime import datetime
 #################
 
 class State:
-    def __init__(self, actualPosition, boxes):
+    def __init__(self, actualPosition, boxes, costFocused = None):
         self.actualPosition=actualPosition
         self.boxes=boxes
+        self.costFocused=costFocused
 
     def __eq__(self, other):
-        return (self.actualPosition == other.actualPosition and self.boxes == other.boxes)
+        return (self.actualPosition == other.actualPosition and self.boxes == other.boxes and self.costFocused == other.costFocused)
 
     def __hash__(self):
         tmpArray = []
-        tmpArray.append(tuple(["pos", tuple(self.actualPosition)]))
+        tmpArray.append(tuple(["pos", tuple(self.actualPosition), self.costFocused]))
         for i in self.boxes:
             tmpArray.append(tuple(i))
         return hash(tuple(tmpArray))
 
-    def __str__(self):
-        return "nobody uses you"
+    def __str__(self, walls):
+        copywalls = copy.deepcopy(walls)
+        for box in self.boxes:
+            copywalls[box[0]][box[1]] = '$'
+        copywalls[self.actualPosition[0]][self.actualPosition[1]] = '@'
+        printBeautifulPath(copywalls)
 
     def __lt__(self, other):
         return None
@@ -35,7 +40,7 @@ class State:
         for i in self.boxes:
             newBoxes.append(copy.deepcopy(i))
         newActualPosition = copy.deepcopy(self.actualPosition)
-        return State(newActualPosition, newBoxes)
+        return State(newActualPosition, newBoxes, self.costFocused)
 
 class FindEntry(Problem):
 
@@ -64,6 +69,83 @@ class FindEntry(Problem):
     
     def result(self, state, action):
         return tuple(action)
+
+class ResolverCube(Problem):
+
+    def __init__(self, initial):
+        self.goalSolveOrder = initial.get("goalSolveOrder")
+        self.goalsCosts = initial.get("goalsCosts")
+        self.walls = initial.get("walls")
+        self.deadLocks = initial.get("deadlocks")
+        self.initial = State(initial.get("playerPos"), initial.get("boxes"), self.goalsCosts[0])
+
+
+    def goal_test(self, state):
+        goalsAchieved = copy.deepcopy(self.goalSolveOrder)
+        for i in state.boxes:
+            if i in goalsAchieved:
+                goalsAchieved.remove(i)
+        if len(goalsAchieved) == 0:
+            return True
+        else:
+            return False
+
+    def actions(self, state):
+        actions = []
+        boxesOnWrongPlaces = copy.deepcopy(state.boxes)
+        achievedGoals = []
+        nextGoals = []
+        for i in range(self.goalsCosts.index(state.costFocused)):
+            achievedGoals.append(self.goalSolveOrder[i])
+        if self.goalsCosts.count(state.costFocused) != 1:
+            tmpGoals = []
+            for i in range(len(self.goalsCosts)):
+                if self.goalsCosts[i] == state.costFocused:
+                    tmpGoals.append(self.goalSolveOrder[i])
+                    nextGoals.append(self.goalSolveOrder[i])
+            for i in tmpGoals:
+                for box in state.boxes:
+                    if i == box:
+                        achievedGoals.append(box)
+        else:
+            nextGoals.append(self.goalSolveOrder[self.goalsCosts.index(state.costFocused)])
+        for box in state.boxes:
+            if box in achievedGoals:
+                boxesOnWrongPlaces.remove(box)
+        for nextGoal in nextGoals:
+            for box in boxesOnWrongPlaces:
+                results = pathCubeExists(self.walls, box, nextGoal, state.boxes, self.deadLocks, state.actualPosition)
+                if results[0]:
+                    actions.append([nextGoal, results[1], box])
+        
+        for box in boxesOnWrongPlaces:
+            for around in getAroundPositions(box):
+                if self.walls[around[0]][around[1]] == ' ' and around not in self.goalSolveOrder and around not in state.boxes:
+                    results = pathCubeExists(self.walls, box, around, state.boxes, self.deadLocks, state.actualPosition)
+                    if results[0]:
+                        actions.append([around, results[1], box])      
+        return actions
+
+    def result(self, state, action):
+        newState = state.copy()
+        newState.boxes[state.boxes.index(action[2])] = action[0]
+        newState.actualPosition = action[1]
+        goalsFocused = []
+        if self.goalsCosts.count(state.costFocused) != 1:
+            for i in range(len(self.goalsCosts)):
+                if self.goalsCosts[i] == state.costFocused:
+                    goalsFocused.append(self.goalSolveOrder[i])
+        else:
+            goalsFocused.append(self.goalSolveOrder[self.goalsCosts.index(state.costFocused)])
+        for goal in goalsFocused:
+            if goal == action[0]:
+                try:
+                    newState.costFocused = self.goalsCosts[self.goalSolveOrder.index(goal)+1]
+                except IndexError:
+                    None
+                    #end of resolution
+        return newState
+
 
 ######################
 # Auxiliary function #
@@ -131,18 +213,14 @@ def pathCubeExistsDFS(grid, start, end, visited, pos, deadLocks):
         k = start[0] - d[0]
         l = start[1] - d[1]
         next = [i, j]
-        if i == end[0] and j == end[1] and grid[k][l] == ' ':
-            printBeautifulPath(visited)
+        if i == end[0] and j == end[1] and grid[k][l] == ' ' and pathExists(grid, pos, [k, l], [start]):
             return [True, start]
-        if grid[i][j] == ' ' and not visited[i][j] and [i, j] not in deadLocks and grid[k][l]  == ' ' and pathExists(grid, pos, [k, l], None):
+        if grid[i][j] == ' ' and visited[i][j] != 1 and [i, j] not in deadLocks and grid[k][l]  == ' ' and pathExists(grid, pos, [k, l], [start]):
             visited[i][j] = 1
-            pos = copy.deepcopy(start)
-            exists = pathCubeExistsDFS(grid, next, end, visited, pos, deadLocks)
+            exists = pathCubeExistsDFS(grid, next, end, visited, start, deadLocks)
             if exists[0]:
                 return exists
-    printBeautifulPath(visited)
     return [False, [0,0]]
-
 
 def pathExists(actualGrid, start, end, boxes):
     grid = copy.deepcopy(actualGrid)
@@ -160,7 +238,7 @@ def pathExistsDFS(grid, start, end, visited):
         next = [i, j]
         if i == end[0] and j == end[1]:
             return True
-        if grid[i][j] == ' ' and not visited[i][j]:
+        if grid[i][j] == ' ' and visited[i][j] != 1:
             visited[i][j] = 1
             exists = pathExistsDFS(grid, next, end, visited)
             if exists:
@@ -251,21 +329,21 @@ def getDeadlocks(walls, goals):
                 for path in tmpPath:
                     if path not in trueDeadLocks:
                         trueDeadLocks.append(path)
-    
+    return trueDeadLocks
+
+def showDeadLocks(walls, deadLocks):
     copyWalls = copy.deepcopy(walls) 
     for i in range(len(copyWalls)):
         for j in range(len(copyWalls[0])):
-            if [i,j] in trueDeadLocks:
+            if [i,j] in deadLocks:
                 copyWalls[i][j] = 'x'
     printBeautifulPath(copyWalls)
-    return trueDeadLocks
 
 def fineSolveOrder(coarseOrder, walls, deadLocks, goals):
     fineOrder = []
     costsNonSorted = []
     for i in coarseOrder:
         costsNonSorted.append(i[1])
-    print("costsNonSorted", costsNonSorted)
     maxCost = max(costsNonSorted)
     costs = []
     for i in range(maxCost +1):
@@ -273,12 +351,11 @@ def fineSolveOrder(coarseOrder, walls, deadLocks, goals):
             if i == j:
                 costs.append(j)
     costs = list(reversed(costs))
-    print("costsSorted", costs)
     sameCosts = []
     for i in costs:
         if costs.count(i) != 1 and i not in sameCosts:
             sameCosts.append(i)
-    print("sameCosts", sameCosts)
+    finalCost = []
     for costRising in costs:
         if costRising in sameCosts:
             for i in sameCosts:
@@ -296,6 +373,7 @@ def fineSolveOrder(coarseOrder, walls, deadLocks, goals):
                 for j in range(len(sameCostsGoals)):
                     if entries[j] not in sameEntry and sameCostsGoals[j] not in fineOrder:
                         fineOrder.append(sameCostsGoals[j])
+                        finalCost.append(i)
                     elif sameCostsGoals[j] in fineOrder: None
                     else:
                         sameCostsSameEntry = []
@@ -314,11 +392,13 @@ def fineSolveOrder(coarseOrder, walls, deadLocks, goals):
                             for x in distanceToGoal:
                                 if x[0] == maxDist-k:
                                     fineOrder.append(x[1])
+                                    finalCost.append(i+(maxDist-k)/(maxDist+1))
         else: 
             for i in coarseOrder:
                 if i[1] == costRising:
                     fineOrder.append(i[0])
-    return fineOrder
+                    finalCost.append(i[1])
+    return fineOrder, finalCost
 
 def getEntry(goal, goals, walls, deadLocks):
     problemParams = {
@@ -330,7 +410,7 @@ def getEntry(goal, goals, walls, deadLocks):
     findEntry = FindEntry(problemParams)
     resolution = search.depth_first_graph_search(findEntry)
     try:
-        resolution.solution()[-1]
+        return resolution.solution()[-1]
     except IndexError:
         #entry is around itself...
         for i in getAroundPositions(goal):
@@ -353,25 +433,46 @@ printBeautifulPath(grid)
 printBeautifulPath(goalsGrid)
 
 player, boxes, walls = getEssentialsPositions(grid)
-state = State(player, boxes)
 goals = getGoals(goalsGrid)
 coarseOrder = coarseSolveOrder(walls, goals)
 deadLocks = getDeadlocks(walls, goals)
+fineSolver, finalCosts = fineSolveOrder(coarseOrder, walls, deadLocks, goals)
+
+showDeadLocks(walls, deadLocks)
 
 print("coarse solve order", coarseOrder)
 
 print("deadlocks position:", deadLocks)
 
-fineSolver = fineSolveOrder(coarseOrder, walls, deadLocks, goals)
+print("fine solve order", fineSolver, finalCosts)
 
-print("fine solve order", fineSolver)
+initialParams = {
+    "playerPos": player,
+    "boxes": boxes,
+    "goalSolveOrder": fineSolver,
+    "goalsCosts": finalCosts,
+    "walls": walls,
+    "deadlocks": deadLocks
+}
 
-start = [2, 7]
-end = [3,6]
-playerPos = [1, 4]
-boxeee = [[1,5], [3,6]]
-print(pathCubeExists(walls, start, end, boxeee, deadLocks, playerPos))
 
+
+
+theProblem = ResolverCube(initialParams)
+eventualResolution = search.depth_first_graph_search(theProblem)#breadth_first_graph_search
+if eventualResolution != None: 
+    for s in eventualResolution.path():
+        s.state.__str__(walls)
+else:
+    print("resolution impossible")
+"""
+start = [4, 3]
+end = [3, 2]
+playerPos = [5, 2]
+boxeee = [[4, 3], [6,2], [5, 4]]
+results = pathCubeExists(walls, start, end, boxeee, deadLocks, playerPos)
+print(results)
+"""
 """
 exDict = {
     "goal": [1, 5],
