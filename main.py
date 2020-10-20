@@ -4,7 +4,6 @@ import search
 import copy
 from search import Problem
 from datetime import datetime
-from itertools import combinations 
 
 #################
 # Problem class #
@@ -79,7 +78,23 @@ class ResolverCube(Problem):
         self.walls = initial.get("walls")
         self.deadLocks = initial.get("deadlocks")
         self.initial = State(initial.get("playerPos"), initial.get("boxes"), self.goalsCosts[0])
+        self.heuristicCoeff = self.findHeuristicCoeff()
 
+    def findHeuristicCoeff(self):
+        coeff = [1, 2]
+        cost = 0
+        while abs(40-cost)>0.01:
+            cost = 0
+            for i in self.goalsCosts:
+                cost += i * coeff[1]
+            if cost == 40:
+                return coeff[1]
+            elif cost<40:
+                coeff = [coeff[1], coeff[1]*2-coeff[0]]
+            else:
+                coeff = [coeff[0], coeff[1]-(coeff[1]-coeff[0])/2]
+        print("coef[1]", coeff[1])
+        return coeff[1]
 
     def goal_test(self, state):
         goalsAchieved = copy.deepcopy(self.goalSolveOrder)
@@ -149,11 +164,11 @@ class ResolverCube(Problem):
     def h(self, node):
         cost = 0
         for i in self.goalsCosts:
-            cost += i * 5
+            cost += i * self.heuristicCoeff
         for box in node.state.boxes:
             for i in range(len(self.goalsCosts)):
                 if box == self.goalSolveOrder[i]:
-                    cost -= self.goalsCosts[i] * 5
+                    cost -= self.goalsCosts[i] * self.heuristicCoeff
         return cost
 
     def path_cost(self, c, state1, action, state2):
@@ -470,6 +485,8 @@ initialParams = {
     "walls": walls,
     "deadlocks": deadLocks
 }
+
+
 now = datetime.now()
 
 theProblem = ResolverCube(initialParams)
