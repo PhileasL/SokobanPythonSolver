@@ -137,7 +137,7 @@ class ResolverCube(Problem):
             for around in getAroundPositions(box):
                 if self.walls[around[0]][around[1]] == ' ' and around not in state.boxes:
                     results = pathCubeExists(self.walls, box, around, state.boxes, self.deadLocks, state.actualPosition)
-                    if results[0]:
+                    if results[0] and results[2] == 1:
                         actions.append([around, results[1], box])      
         return actions
 
@@ -177,6 +177,43 @@ class ResolverCube(Problem):
         else:
             return c + 20
 
+class PathFinderCube(Problem):
+    def __init__(self, initial, goal):
+        self.walls = initial.get("walls")
+        self.deadLocks = initial.get("deadlocks")
+        self.initial = State(initial.get("playerPos"), initial.get("boxes"), goal.costFocused)
+        self.goal = goal
+        self.indexBoxFocused = self.findIndexBoxFocused()
+
+    def findIndexBoxFocused(self):
+        for i in self.initial.boxes:
+            if i not in self.goal.boxes:
+                return self.initial.boxes.index(i)
+
+    def goal_test(self, state):
+        if state == self.goal:
+            return True
+        else:
+            return False
+    
+    def actions(self, state):
+        actions = []
+        for around in getAroundPositions(state.boxes[self.indexBoxFocused]):
+            if self.walls[around[0]][around[1]] == ' ' and around not in state.boxes:
+                results = pathCubeExists(self.walls, state.boxes[self.indexBoxFocused], around, state.boxes, self.deadLocks, state.actualPosition)
+                if results[0] and results[2] == 1:
+                    actions.append([around, results[1], state.boxes[self.indexBoxFocused]])
+        return actions
+
+    def result(self, state, action):
+        newState = state.copy()
+        newState.boxes[state.boxes.index(action[2])] = action[0]
+        newState.actualPosition = action[1]
+        return newState
+
+    def h(self, node):
+        return manhattanHeuristicFunction(node.state.boxes[self.indexBoxFocused], self.goal.boxes[self.indexBoxFocused])
+    
 
 ######################
 # Auxiliary function #
@@ -234,10 +271,12 @@ def pathCubeExists(actualGrid, start, end, boxes, deadLocks, playerPos):
         if i != start:
             grid[i[0]][i[1]] = '#'
     visited = [ [0 for j in range(0, len(grid[0]))] for i in range(0, len(grid)) ]
-    ok = pathCubeExistsDFS(grid, start, end, visited, playerPos, deadLocks)
+    visited[start[0]][start[1]] = 1
+    ok = pathCubeExistsDFS(grid, start, end, visited, playerPos, deadLocks, 0)
     return ok
 
-def pathCubeExistsDFS(grid, start, end, visited, pos, deadLocks):
+def pathCubeExistsDFS(grid, start, end, visited, pos, deadLocks, nbOfMove):
+    moves = nbOfMove + 1
     for d in directions:
         i = start[0] + d[0]
         j = start[1] + d[1]
@@ -245,13 +284,13 @@ def pathCubeExistsDFS(grid, start, end, visited, pos, deadLocks):
         l = start[1] - d[1]
         next = [i, j]
         if i == end[0] and j == end[1] and grid[k][l] == ' ' and pathExists(grid, pos, [k, l], [start]):
-            return [True, start]
+            return [True, start, moves]
         if grid[i][j] == ' ' and visited[i][j] != 1 and [i, j] not in deadLocks and grid[k][l]  == ' ' and pathExists(grid, pos, [k, l], [start]):
             visited[i][j] = 1
-            exists = pathCubeExistsDFS(grid, next, end, visited, start, deadLocks)
+            exists = pathCubeExistsDFS(grid, next, end, visited, start, deadLocks, moves)
             if exists[0]:
                 return exists
-    return [False, [0,0]]
+    return [False, [0,0], moves]
 
 def pathExists(actualGrid, start, end, boxes):
     grid = copy.deepcopy(actualGrid)
@@ -486,7 +525,6 @@ initialParams = {
     "deadlocks": deadLocks
 }
 
-
 now = datetime.now()
 
 theProblem = ResolverCube(initialParams)
@@ -495,17 +533,24 @@ eventualResolution = search.astar_search(theProblem)#breadth_first_graph_search 
 later = datetime.now()
 
 if eventualResolution != None: 
-    for s in eventualResolution.path():
-        s.state.__str__(walls)
+    firstPathCube = eventualResolution.path()
+    for i in range(len(firstPathCube)-1):
+        initialParams["playerPos"] = firstPathCube[i].state.actualPosition
+        initialParams["boxes"] = firstPathCube[i].state.boxes
+        cubePathProblem = PathFinderCube(initialParams, firstPathCube[i+1].state)
+        cubePath = search.astar_search(cubePathProblem)
+        secondPathCube = cubePath.path()
+        for j in range(len(secondPathCube)-1):
+            secondPathCube[j].state.__str__(walls)
 else:
     print("resolution impossible")
 
 print("resolution took", (later - now).total_seconds(), "secondes")
 """
-start = [3, 2]
+start = [6, 3]
 end = [6, 2]
-playerPos = [4, 2]
-boxeee = [[3, 2], [3, 3], [3, 4]]
+playerPos = [4, 4]
+boxeee = [[6, 3], [1, 6], [3, 6], [3, 4]]
 results = pathCubeExists(walls, start, end, boxeee, deadLocks, playerPos)
 print(results)
 """
