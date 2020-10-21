@@ -193,18 +193,39 @@ class PathFinderCube(Problem):
                 return self.initial.boxes.index(i)
 
     def goal_test(self, state):
-        if state == self.goal:
+        if state.boxes == self.goal.boxes and state.actualPosition == self.goal.actualPosition:
             return True
         else:
             return False
     
     def actions(self, state):
         actions = []
+        if self.goal.boxes == state.boxes:
+            if pathExists(self.walls, state.actualPosition, self.goal.actualPosition, state.boxes):
+                return [[state.boxes[self.indexBoxFocused], self.goal.actualPosition, state.boxes[self.indexBoxFocused]]]
+
         for around in getAroundPositions(state.boxes[self.indexBoxFocused]):
+            i = state.boxes[self.indexBoxFocused][0] + state.boxes[self.indexBoxFocused][0] - around[0]
+            j = state.boxes[self.indexBoxFocused][1] + state.boxes[self.indexBoxFocused][1] - around[1]
+            """
+            if state.boxes[self.indexBoxFocused] == [3,7]:
+                print(around)
+                test = self.walls[around[0]][around[1]] == ' ' and around not in state.boxes and self.walls[i][j] == ' ' \
+                    and around not in self.deadLocks \
+                    and pathExists(self.walls, state.actualPosition, [i, j], state.boxes)
+                print(test)
+                print([i, j],"\n")
+            """
+            if self.walls[around[0]][around[1]] == ' ' and around not in state.boxes and self.walls[i][j] == ' ' \
+            and around not in self.deadLocks and pathExists(self.walls, state.actualPosition, [i, j], state.boxes):
+                actions.append([around, state.boxes[self.indexBoxFocused], state.boxes[self.indexBoxFocused]])
+            """
             if self.walls[around[0]][around[1]] == ' ' and around not in state.boxes:
                 results = pathCubeExists(self.walls, state.boxes[self.indexBoxFocused], around, state.boxes, self.deadLocks, state.actualPosition)
                 if results[0] and results[2] == 1:
                     actions.append([around, results[1], state.boxes[self.indexBoxFocused]])
+                #actions.append([state.boxes[self.indexBoxFocused], around, state.boxes[self.indexBoxFocused]])
+            """
         return actions
 
     def result(self, state, action):
@@ -581,8 +602,8 @@ if eventualResolution != None:
         cubePath = search.astar_search(cubePathProblem)
 
         secondPathCube = cubePath.path()
-
         for j in range(len(secondPathCube)-1):
+            
             initialParams["playerPos"] = secondPathCube[j].state.actualPosition
             initialParams["boxes"] = secondPathCube[j].state.boxes
 
@@ -593,23 +614,40 @@ if eventualResolution != None:
 
             for k in range(len(thirdPathPlayer)):
                 thirdPathPlayer[k].state.__str__(walls)
-
-
-
-            #secondPathCube[j].state.__str__(walls)
+            
+            """
+            secondPathCube[j].state.__str__(walls)
+            
+            if j == len(secondPathCube)-2:
+                secondPathCube[j+1].state.__str__(walls)
+                """
+            
 else:
     print("resolution impossible")
-
+later2 = datetime.now()
 print("resolution took", (later - now).total_seconds(), "secondes")
+print("Path finding between each states computed at first stage took", (later2 - later).total_seconds(), "secondes")
+
+
 """
-start = [6, 3]
-end = [6, 2]
-playerPos = [4, 4]
-boxeee = [[6, 3], [1, 6], [3, 6], [3, 4]]
+initialParams["playerPos"] = [1, 4]
+initialParams["boxes"] = [[1,5], [2,7]]
+finalState = State([3,5], [[1,5], [3,6]])
+cubePathProblem = PathFinderCube(initialParams, finalState)
+cubePath = search.astar_search(cubePathProblem)
+
+for s in cubePath.path():
+    s.state.__str__(walls)
+
+
+start = [2, 6]
+end = [3, 6]
+playerPos = [1, 7]
+boxeee = [[1,5], [2, 6]]
 results = pathCubeExists(walls, start, end, boxeee, deadLocks, playerPos)
 print(results)
-"""
-"""
+
+
 exDict = {
     "goal": [1, 5],
     "walls": walls,
