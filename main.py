@@ -5,6 +5,17 @@ import copy
 from search import Problem
 from datetime import datetime
 
+"""
+
+source the problem .goal and .init in the launch command
+ex:
+python main.py ".\benchsGiven\sokoInst15.init" ".\benchsGiven\sokoInst15.goal"
+
+"""
+
+""" you can adjust the displaying time between 2 states (in seconds) """
+timeBetween2States = 0.25
+
 ###########
 # classes #
 ###########
@@ -580,6 +591,8 @@ initialParams = {
     "deadlocks": deadLocks
 }
 
+print("Searching...")
+
 now = datetime.now()
 
 theProblem = ResolverCube(initialParams)
@@ -602,11 +615,11 @@ if eventualResolution != None:
             thirdPathPlayer = playerPathFinder(secondPathCube[j].state, secondPathCube[j+1].state, initialParams)
 
             for k in range(len(thirdPathPlayer)):
-                time.sleep(0.25)
+                time.sleep(timeBetween2States)
                 thirdPathPlayer[k].state.__str__(walls)
 
                 if j == len(secondPathCube)-2 and k == len(thirdPathPlayer)-1 and thirdPathPlayer[-1].state != finalState and secondPathCube[j+1].state == finalState:
-                    time.sleep(0.25)
+                    time.sleep(timeBetween2States)
                     secondPathCube[j+1].state.__str__(walls)
      
 else:
@@ -615,3 +628,13 @@ later2 = datetime.now()
 
 print("Resolution took", (later - now).total_seconds(), "secondes")
 print("Displaying took", (later2 - later).total_seconds(), "secondes")
+
+"""
+some statistics over resolution time on my seven years old computer:
+sokoInst01: 0.012 seconds
+sokoInst02: 0.585 seconds
+sokoInst07: 0.233 seconds
+sokoInst08: 0.209 seconds
+sokoInst15: 0.738 seconds
+
+"""
