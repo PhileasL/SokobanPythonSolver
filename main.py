@@ -5,9 +5,9 @@ import copy
 from search import Problem
 from datetime import datetime
 
-#################
-# Problem class #
-#################
+###########
+# classes #
+###########
 
 class State:
 
@@ -94,7 +94,6 @@ class ResolverCube(Problem):
                 coeff = [coeff[1], coeff[1]*2-coeff[0]]
             else:
                 coeff = [coeff[0], coeff[1]-(coeff[1]-coeff[0])/2]
-        print("coef[1]", coeff[1])
         return coeff[1]
 
     def goal_test(self, state):
@@ -258,8 +257,6 @@ class PathFinderPlayer(Problem):
 
     def h(self, node):
         return manhattanHeuristicFunction(node.state.actualPosition, self.goal)
-
-    
 
 ######################
 # Auxiliary function #
@@ -503,7 +500,6 @@ def fineSolveOrder(coarseOrder, walls, deadLocks, goals):
                         for k in distanceToGoal:
                             if maxDist < k[0]:
                                 maxDist = k[0]
-                        print(distanceToGoal, maxDist)
                         for k in range(maxDist+1):
                             for x in distanceToGoal:
                                 if x[0] == maxDist-k:
@@ -563,22 +559,17 @@ def playerPathFinder(state1, state2, params):
 grid = openFile(sys.argv[1])
 goalsGrid = openFile(sys.argv[2])
 
-printBeautifulPath(grid)
-printBeautifulPath(goalsGrid)
-
 player, boxes, walls = getEssentialsPositions(grid)
 goals = getGoals(goalsGrid)
 coarseOrder = coarseSolveOrder(walls, goals)
 deadLocks = getDeadlocks(walls, goals)
 fineSolver, finalCosts = fineSolveOrder(coarseOrder, walls, deadLocks, goals)
 
-showDeadLocks(walls, deadLocks)
+#showDeadLocks(walls, deadLocks)
 
-print("coarse solve order", coarseOrder)
+#print("fine solve order", fineSolver, finalCosts)
 
-print("deadlocks position:", deadLocks)
-
-print("fine solve order", fineSolver, finalCosts)
+State(player, boxes).__str__(walls)
 
 initialParams = {
     "playerPos": player,
@@ -592,9 +583,13 @@ initialParams = {
 now = datetime.now()
 
 theProblem = ResolverCube(initialParams)
-eventualResolution = search.astar_search(theProblem)#breadth_first_graph_search depth_first_graph_search
+eventualResolution = search.astar_search(theProblem)
 
 later = datetime.now()
+
+########################
+# Display the solution #
+########################
 
 if eventualResolution != None: 
     firstPathCube = eventualResolution.path()
@@ -607,15 +602,16 @@ if eventualResolution != None:
             thirdPathPlayer = playerPathFinder(secondPathCube[j].state, secondPathCube[j+1].state, initialParams)
 
             for k in range(len(thirdPathPlayer)):
+                time.sleep(0.25)
                 thirdPathPlayer[k].state.__str__(walls)
 
-                if j == len(secondPathCube)-2 and k == len(thirdPathPlayer)-1 and thirdPathPlayer[-1].state != finalState:
+                if j == len(secondPathCube)-2 and k == len(thirdPathPlayer)-1 and thirdPathPlayer[-1].state != finalState and secondPathCube[j+1].state == finalState:
+                    time.sleep(0.25)
                     secondPathCube[j+1].state.__str__(walls)
-                
-            
-            
+     
 else:
     print("resolution impossible")
 later2 = datetime.now()
-print("resolution took", (later - now).total_seconds(), "secondes")
-print("Path finding between each states computed at first stage took", (later2 - later).total_seconds(), "secondes")
+
+print("Resolution took", (later - now).total_seconds(), "secondes")
+print("Displaying took", (later2 - later).total_seconds(), "secondes")
